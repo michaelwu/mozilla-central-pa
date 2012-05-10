@@ -98,58 +98,58 @@ AudioManager::~AudioManager() {
 NS_IMETHODIMP
 AudioManager::GetMicrophoneMuted(bool* aMicrophoneMuted)
 {
-  if (AudioSystem::isMicrophoneMuted(aMicrophoneMuted)) {
+//  if (AudioSystem::isMicrophoneMuted(aMicrophoneMuted)) {
     return NS_ERROR_FAILURE;
-  }
+//  }
   return NS_OK;
 }
 
 NS_IMETHODIMP
 AudioManager::SetMicrophoneMuted(bool aMicrophoneMuted)
 {
-  if (AudioSystem::muteMicrophone(aMicrophoneMuted)) {
+//  if (AudioSystem::muteMicrophone(aMicrophoneMuted)) {
     return NS_ERROR_FAILURE;
-  }
+//  }
   return NS_OK;
 }
 
 NS_IMETHODIMP
 AudioManager::GetMasterVolume(float* aMasterVolume)
 {
-  if (AudioSystem::getMasterVolume(aMasterVolume)) {
+//  if (AudioSystem::getMasterVolume(aMasterVolume)) {
     return NS_ERROR_FAILURE;
-  }
+//  }
   return NS_OK;
 }
 
 NS_IMETHODIMP
 AudioManager::SetMasterVolume(float aMasterVolume)
 {
-  if (AudioSystem::setMasterVolume(aMasterVolume)) {
+//  if (AudioSystem::setMasterVolume(aMasterVolume)) {
     return NS_ERROR_FAILURE;
-  }
+//  }
   // For now, just set the voice volume at the same level
-  if (AudioSystem::setVoiceVolume(aMasterVolume)) {
+//  if (AudioSystem::setVoiceVolume(aMasterVolume)) {
     return NS_ERROR_FAILURE;
-  }
+//  }
   return NS_OK;
 }
 
 NS_IMETHODIMP
 AudioManager::GetMasterMuted(bool* aMasterMuted)
 {
-  if (AudioSystem::getMasterMute(aMasterMuted)) {
+//  if (AudioSystem::getMasterMute(aMasterMuted)) {
     return NS_ERROR_FAILURE;
-  }
+//  }
   return NS_OK;
 }
 
 NS_IMETHODIMP
 AudioManager::SetMasterMuted(bool aMasterMuted)
 {
-  if (AudioSystem::setMasterMute(aMasterMuted)) {
+//  if (AudioSystem::setMasterMute(aMasterMuted)) {
     return NS_ERROR_FAILURE;
-  }
+//  }
   return NS_OK;
 }
 
@@ -163,9 +163,9 @@ AudioManager::GetPhoneState(PRInt32* aState)
 NS_IMETHODIMP
 AudioManager::SetPhoneState(PRInt32 aState)
 {
-  if (AudioSystem::setPhoneState(aState)) {
+//  if (AudioSystem::setPhoneState(aState)) {
     return NS_ERROR_FAILURE;
-  }
+//  }
   return NS_OK;
 }
 
@@ -181,6 +181,7 @@ NS_IMETHODIMP
 AudioManager::SetForceForUse(PRInt32 aUsage, PRInt32 aForce)
 {
   status_t status = 0;
+#if 0
   if (static_cast<
       status_t (*)(AudioSystem::force_use, AudioSystem::forced_config)
       >(AudioSystem::setForceUse)) {
@@ -194,12 +195,13 @@ AudioManager::SetForceForUse(PRInt32 aUsage, PRInt32 aForce)
     status = AudioSystem::setForceUse((audio_policy_force_use_t)aUsage,
                                       (audio_policy_forced_cfg_t)aForce);
   }
-
+#endif
   return status ? NS_ERROR_FAILURE : NS_OK;
 }
 
 NS_IMETHODIMP
 AudioManager::GetForceForUse(PRInt32 aUsage, PRInt32* aForce) {
+#if 0
   if (static_cast<
       AudioSystem::forced_config (*)(AudioSystem::force_use)
       >(AudioSystem::getForceUse)) {
@@ -211,11 +213,13 @@ AudioManager::GetForceForUse(PRInt32 aUsage, PRInt32* aForce) {
     // Dynamically resolved the ICS signature.
     *aForce = AudioSystem::getForceUse((audio_policy_force_use_t)aUsage);
   }
+#endif
   return NS_OK;
 }
 
 void
 AudioManager::SetAudioRoute(int aRoutes) {
+#if 0
   audio_io_handle_t handle = 0;
   if (static_cast<
       audio_io_handle_t (*)(AudioSystem::stream_type, uint32_t, uint32_t, uint32_t, AudioSystem::output_flags)
@@ -230,4 +234,5 @@ AudioManager::SetAudioRoute(int aRoutes) {
   String8 cmd;
   cmd.appendFormat("routing=%d", GetRoutingMode(aRoutes));
   AudioSystem::setParameters(handle, cmd);
+#endif
 }
