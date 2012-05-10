@@ -61,4 +61,11 @@ CSRCS           = \
                 $(NULL)
 endif
 
+ifeq ($(MOZ_WIDGET_TOOLKIT),gonk)
+CSRCS           = \
+                cubeb_pulse.c \
+                $(NULL)
+LOCAL_INCLUDES = -I$(ANDROID_SOURCE)/external/pulseaudio/src
+endif
+
 include $(topsrcdir)/config/rules.mk
