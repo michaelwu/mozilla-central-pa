@@ -1074,8 +1074,14 @@ nsBufferedAudioStream::Write(const void* aBuf, PRUint32 aFrames)
     src += available;
     bytesToCopy -= available;
 
-    if (mState != STARTED && cubeb_stream_start(mCubebStream) == CUBEB_OK) {
-      mState = STARTED;
+    if (mState != STARTED) {
+      int ret;
+      {
+        MonitorAutoUnlock unmon(mMonitor);
+        ret = cubeb_stream_start(mCubebStream);
+      }
+      if (ret == CUBEB_OK)
+        mState = STARTED;
     }
 
     if (mState == STARTED && bytesToCopy > 0) {
@@ -1132,7 +1138,12 @@ nsBufferedAudioStream::Pause()
     return;
   }
 
-  if (cubeb_stream_stop(mCubebStream) == CUBEB_OK) {
+  int ret;
+  {
+    MonitorAutoUnlock unmon(mMonitor);
+    ret = cubeb_stream_stop(mCubebStream);
+  }
+  if (ret == CUBEB_OK) {
     mState = STOPPED;
   }
 }
@@ -1145,14 +1156,19 @@ nsBufferedAudioStream::Resume()
     return;
   }
 
-  if (cubeb_stream_start(mCubebStream) == CUBEB_OK) {
+  int ret;
+  {
+    MonitorAutoUnlock unmon(mMonitor);
+    ret = cubeb_stream_start(mCubebStream);
+  }
+  if (ret == CUBEB_OK) {
     mState = STARTED;
   }
 }
 
 PRInt64 nsBufferedAudioStream::GetPosition()
 {
-  MonitorAutoLock mon(mMonitor);
+  //MonitorAutoLock mon(mMonitor);
   PRInt64 frames = GetPositionInFramesUnlocked();
   if (frames >= 0) {
     return USECS_PER_S * frames / mRate;
@@ -1163,14 +1179,14 @@ PRInt64 nsBufferedAudioStream::GetPosition()
 PRInt64
 nsBufferedAudioStream::GetPositionInFrames()
 {
-  MonitorAutoLock mon(mMonitor);
+  //MonitorAutoLock mon(mMonitor);
   return GetPositionInFramesUnlocked();
 }
 
 PRInt64
 nsBufferedAudioStream::GetPositionInFramesUnlocked()
 {
-  mMonitor.AssertCurrentThreadOwns();
+  //mMonitor.AssertCurrentThreadOwns();
 
   if (!mCubebStream || mState == ERRORED) {
     return -1;
