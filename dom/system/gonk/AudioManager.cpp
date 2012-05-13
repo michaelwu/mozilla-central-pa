@@ -39,10 +39,9 @@
 
 #include "mozilla/Hal.h"
 #include "AudioManager.h"
-#include "gonk/AudioSystem.h"
+#include <pulse/pulseaudio.h>
 
 using namespace mozilla::dom::gonk;
-using namespace android;
 using namespace mozilla::hal;
 using namespace mozilla;
 
@@ -50,28 +49,15 @@ using namespace mozilla;
 
 NS_IMPL_ISUPPORTS1(AudioManager, nsIAudioManager)
 
-static AudioSystem::audio_devices
-GetRoutingMode(int aType) {
-  if (aType == nsIAudioManager::FORCE_SPEAKER) {
-    return AudioSystem::DEVICE_OUT_SPEAKER;
-  } else if (aType == nsIAudioManager::FORCE_HEADPHONES) {
-    return AudioSystem::DEVICE_OUT_WIRED_HEADSET;
-  } else if (aType == nsIAudioManager::FORCE_BT_SCO) {
-    return AudioSystem::DEVICE_OUT_BLUETOOTH_SCO;
-  } else if (aType == nsIAudioManager::FORCE_BT_A2DP) {
-    return AudioSystem::DEVICE_OUT_BLUETOOTH_A2DP;
-  } else {
-    return AudioSystem::DEVICE_IN_DEFAULT;
-  }
-}
+static AudioManager *gManager = NULL;
 
 static void
 InternalSetAudioRoutes(SwitchState aState)
 {
   if (aState == SWITCH_STATE_ON) {
-    AudioManager::SetAudioRoute(nsIAudioManager::FORCE_HEADPHONES);
+    gManager->SetAudioRoute(nsIAudioManager::FORCE_HEADPHONES);
   } else if (aState == SWITCH_STATE_OFF) {
-    AudioManager::SetAudioRoute(nsIAudioManager::FORCE_SPEAKER);
+    gManager->SetAudioRoute(nsIAudioManager::FORCE_SPEAKER);
   }
 }
 
@@ -83,9 +69,24 @@ public:
   }
 };
 
-AudioManager::AudioManager() : mPhoneState(PHONE_STATE_CURRENT),
-                 mObserver(new HeadphoneSwitchObserver())
+AudioManager::AudioManager()
+  : mPhoneState(PHONE_STATE_CURRENT)
+  , mObserver(new HeadphoneSwitchObserver())
+  , mCBMonitor("AudioManager")
 {
+  gManager = this;
+
+  mThreadedMainloop = pa_threaded_mainloop_new();
+  MOZ_ASSERT(mThreadedMainloop);
+
+  pa_threaded_mainloop_start(mThreadedMainloop);
+
+  mContext = pa_context_new(pa_threaded_mainloop_get_api(mThreadedMainloop),
+                            "Gecko AudioManager");
+  MOZ_ASSERT(mContext);
+
+  pa_context_connect(mContext, NULL, PA_CONTEXT_NOAUTOSPAWN, NULL);
+
   RegisterSwitchObserver(SWITCH_HEADPHONES, mObserver);
   
   InternalSetAudioRoutes(GetCurrentSwitchState(SWITCH_HEADPHONES));
@@ -93,6 +94,14 @@ AudioManager::AudioManager() : mPhoneState(PHONE_STATE_CURRENT),
 
 AudioManager::~AudioManager() {
   UnregisterSwitchObserver(SWITCH_HEADPHONES, mObserver);
+
+  pa_context_disconnect(mContext);
+  pa_context_unref(mContext);
+  mContext = NULL;
+
+  pa_threaded_mainloop_stop(mThreadedMainloop);
+  pa_threaded_mainloop_free(mThreadedMainloop);
+  mThreadedMainloop = NULL;
 }
 
 NS_IMETHODIMP
@@ -116,23 +125,37 @@ AudioManager::SetMicrophoneMuted(bool aMicrophoneMuted)
 NS_IMETHODIMP
 AudioManager::GetMasterVolume(float* aMasterVolume)
 {
-//  if (AudioSystem::getMasterVolume(aMasterVolume)) {
-//    return NS_ERROR_FAILURE;
-//  }
+  *aMasterVolume = mMasterVolume;
   return NS_OK;
+}
+
+void
+AudioManager::SuccessCB(pa_context *c, int success, void *userdata)
+{
+  AudioManager *manager = static_cast<AudioManager *>(userdata);
+  MonitorAutoLock lock(manager->mCBMonitor);
+  manager->mSuccess = success;
+  lock.Notify();
 }
 
 NS_IMETHODIMP
 AudioManager::SetMasterVolume(float aMasterVolume)
 {
-//  if (AudioSystem::setMasterVolume(aMasterVolume)) {
-//    return NS_ERROR_FAILURE;
-//  }
-  // For now, just set the voice volume at the same level
-//  if (AudioSystem::setVoiceVolume(aMasterVolume)) {
-//    return NS_ERROR_FAILURE;
-//  }
-  return NS_OK;
+  pa_cvolume vol;
+  pa_cvolume_init(&vol);
+  pa_cvolume_set(&vol, 2, pa_volume_t(PA_VOLUME_NORM * aMasterVolume));
+
+  pa_operation *op = pa_context_set_sink_volume_by_index(mContext, 0, &vol, SuccessCB, this);
+
+  if (!op)
+    return NS_ERROR_FAILURE;
+
+  MonitorAutoLock lock(mCBMonitor);
+  lock.Wait();
+  pa_operation_unref(op);
+  mMasterVolume = aMasterVolume;
+
+  return mSuccess ? NS_OK : NS_ERROR_FAILURE;
 }
 
 NS_IMETHODIMP
@@ -180,8 +203,8 @@ AudioManager::SetPhoneState(PRInt32 aState)
 NS_IMETHODIMP
 AudioManager::SetForceForUse(PRInt32 aUsage, PRInt32 aForce)
 {
-  status_t status = 0;
 #if 0
+  status_t status = 0;
   if (static_cast<
       status_t (*)(AudioSystem::force_use, AudioSystem::forced_config)
       >(AudioSystem::setForceUse)) {
@@ -195,8 +218,9 @@ AudioManager::SetForceForUse(PRInt32 aUsage, PRInt32 aForce)
     status = AudioSystem::setForceUse((audio_policy_force_use_t)aUsage,
                                       (audio_policy_forced_cfg_t)aForce);
   }
-#endif
   return status ? NS_ERROR_FAILURE : NS_OK;
+#endif
+  return NS_OK;
 }
 
 NS_IMETHODIMP
@@ -219,20 +243,26 @@ AudioManager::GetForceForUse(PRInt32 aUsage, PRInt32* aForce) {
 
 void
 AudioManager::SetAudioRoute(int aRoutes) {
-#if 0
-  audio_io_handle_t handle = 0;
-  if (static_cast<
-      audio_io_handle_t (*)(AudioSystem::stream_type, uint32_t, uint32_t, uint32_t, AudioSystem::output_flags)
-      >(AudioSystem::getOutput)) {
-    handle = AudioSystem::getOutput((AudioSystem::stream_type)AudioSystem::SYSTEM);
-  } else if (static_cast<
-             audio_io_handle_t (*)(audio_stream_type_t, uint32_t, uint32_t, uint32_t, audio_policy_output_flags_t)
-             >(AudioSystem::getOutput)) {
-    handle = AudioSystem::getOutput((audio_stream_type_t)AudioSystem::SYSTEM);
+  const char *device;
+
+  switch (aRoutes) {
+  case nsIAudioManager::FORCE_HEADPHONES:
+    device = "Headset";
+    break;
+  case nsIAudioManager::FORCE_SPEAKER:
+  default:
+    device = "Handsfree";
+    break;
   }
-  
-  String8 cmd;
-  cmd.appendFormat("routing=%d", GetRoutingMode(aRoutes));
-  AudioSystem::setParameters(handle, cmd);
-#endif
+
+  pa_operation *op = pa_context_set_sink_port_by_index(mContext, 0, device, SuccessCB, this);
+
+  if (!op)
+    return;
+
+  MonitorAutoLock lock(mCBMonitor);
+  lock.Wait();
+  pa_operation_unref(op);
+
+  return;
 }

@@ -39,6 +39,7 @@
 #define mozilla_dom_system_b2g_audiomanager_h__
 
 #include "mozilla/Observer.h"
+#include "mozilla/Monitor.h"
 #include "nsAutoPtr.h"
 #include "nsIAudioManager.h"
 
@@ -46,7 +47,10 @@
 #define NS_AUDIOMANAGER_CID {0x94f6fd70, 0x7615, 0x4af9, \
       {0x89, 0x10, 0xf9, 0x3c, 0x55, 0xe6, 0x62, 0xec}}
 #define NS_AUDIOMANAGER_CONTRACTID "@mozilla.org/telephony/audiomanager;1"
-
+extern "C" {
+typedef struct pa_threaded_mainloop pa_threaded_mainloop;
+typedef struct pa_context pa_context;
+}
 
 namespace mozilla {
 namespace hal {
@@ -66,12 +70,19 @@ public:
   AudioManager();
   ~AudioManager();
 
-  static void SetAudioRoute(int aRoutes);
+  void SetAudioRoute(int aRoutes);
 protected:
   PRInt32 mPhoneState;
 
 private:
   nsAutoPtr<mozilla::hal::SwitchObserver> mObserver;
+  mozilla::Monitor mCBMonitor;
+  pa_threaded_mainloop * mThreadedMainloop;
+  pa_context * mContext;
+  int mSuccess;
+  float mMasterVolume;
+
+  static void SuccessCB(pa_context *c, int success, void *userdata);
 };
 
 } /* namespace gonk */
