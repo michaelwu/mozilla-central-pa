@@ -99,7 +99,7 @@ NS_IMETHODIMP
 AudioManager::GetMicrophoneMuted(bool* aMicrophoneMuted)
 {
 //  if (AudioSystem::isMicrophoneMuted(aMicrophoneMuted)) {
-    return NS_ERROR_FAILURE;
+//    return NS_ERROR_FAILURE;
 //  }
   return NS_OK;
 }
@@ -108,7 +108,7 @@ NS_IMETHODIMP
 AudioManager::SetMicrophoneMuted(bool aMicrophoneMuted)
 {
 //  if (AudioSystem::muteMicrophone(aMicrophoneMuted)) {
-    return NS_ERROR_FAILURE;
+//    return NS_ERROR_FAILURE;
 //  }
   return NS_OK;
 }
@@ -117,7 +117,7 @@ NS_IMETHODIMP
 AudioManager::GetMasterVolume(float* aMasterVolume)
 {
 //  if (AudioSystem::getMasterVolume(aMasterVolume)) {
-    return NS_ERROR_FAILURE;
+//    return NS_ERROR_FAILURE;
 //  }
   return NS_OK;
 }
@@ -126,11 +126,11 @@ NS_IMETHODIMP
 AudioManager::SetMasterVolume(float aMasterVolume)
 {
 //  if (AudioSystem::setMasterVolume(aMasterVolume)) {
-    return NS_ERROR_FAILURE;
+//    return NS_ERROR_FAILURE;
 //  }
   // For now, just set the voice volume at the same level
 //  if (AudioSystem::setVoiceVolume(aMasterVolume)) {
-    return NS_ERROR_FAILURE;
+//    return NS_ERROR_FAILURE;
 //  }
   return NS_OK;
 }
@@ -139,7 +139,7 @@ NS_IMETHODIMP
 AudioManager::GetMasterMuted(bool* aMasterMuted)
 {
 //  if (AudioSystem::getMasterMute(aMasterMuted)) {
-    return NS_ERROR_FAILURE;
+//    return NS_ERROR_FAILURE;
 //  }
   return NS_OK;
 }
@@ -148,7 +148,7 @@ NS_IMETHODIMP
 AudioManager::SetMasterMuted(bool aMasterMuted)
 {
 //  if (AudioSystem::setMasterMute(aMasterMuted)) {
-    return NS_ERROR_FAILURE;
+//    return NS_ERROR_FAILURE;
 //  }
   return NS_OK;
 }
@@ -164,7 +164,7 @@ NS_IMETHODIMP
 AudioManager::SetPhoneState(PRInt32 aState)
 {
 //  if (AudioSystem::setPhoneState(aState)) {
-    return NS_ERROR_FAILURE;
+//    return NS_ERROR_FAILURE;
 //  }
   return NS_OK;
 }
